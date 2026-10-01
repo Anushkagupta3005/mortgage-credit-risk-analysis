@@ -1,0 +1,54 @@
+period,from_state,to_state,n,pct
+Normal,30,Current,33412,44.421
+Normal,30,90+,94,0.125
+Normal,30,Other exit,45,0.06
+Normal,30,Default,3,0.004
+Normal,30,60,11668,15.513
+Normal,30,30,29090,38.675
+Normal,30,Prepaid,904,1.202
+COVID (Apr20-Dec21),30,30,4207,24.077
+COVID (Apr20-Dec21),30,60,6579,37.652
+COVID (Apr20-Dec21),30,Current,6262,35.838
+COVID (Apr20-Dec21),30,Other exit,12,0.069
+COVID (Apr20-Dec21),30,90+,15,0.086
+COVID (Apr20-Dec21),30,Prepaid,398,2.278
+COVID (Apr20-Dec21),90+,Prepaid,408,1.082
+COVID (Apr20-Dec21),90+,60,281,0.745
+COVID (Apr20-Dec21),90+,30,233,0.618
+COVID (Apr20-Dec21),90+,90+,33004,87.497
+COVID (Apr20-Dec21),90+,Current,3736,9.905
+COVID (Apr20-Dec21),90+,Default,35,0.093
+COVID (Apr20-Dec21),90+,Other exit,23,0.061
+Normal,Current,Prepaid,81572,0.707
+Normal,Current,Current,11400771,98.878
+Normal,Current,Other exit,641,0.006
+Normal,Current,90+,85,0.001
+Normal,Current,Default,4,0.0
+Normal,Current,30,46791,0.406
+Normal,Current,60,281,0.002
+Normal,60,Prepaid,217,1.235
+Normal,60,90+,6526,37.147
+Normal,60,Current,3031,17.253
+Normal,60,Default,6,0.034
+Normal,60,Other exit,15,0.085
+Normal,60,30,2454,13.969
+Normal,60,60,5319,30.277
+COVID (Apr20-Dec21),60,Prepaid,115,1.384
+COVID (Apr20-Dec21),60,60,1286,15.481
+COVID (Apr20-Dec21),60,30,434,5.225
+COVID (Apr20-Dec21),60,90+,5325,64.103
+COVID (Apr20-Dec21),60,Current,1142,13.747
+COVID (Apr20-Dec21),60,Other exit,5,0.06
+Normal,90+,Prepaid,602,1.368
+Normal,90+,90+,37497,85.236
+Normal,90+,Current,4042,9.188
+Normal,90+,Default,468,1.064
+Normal,90+,Other exit,117,0.266
+Normal,90+,30,529,1.202
+Normal,90+,60,737,1.675
+COVID (Apr20-Dec21),Current,30,10006,0.544
+COVID (Apr20-Dec21),Current,60,43,0.002
+COVID (Apr20-Dec21),Current,Current,1780163,96.768
+COVID (Apr20-Dec21),Current,90+,27,0.001
+COVID (Apr20-Dec21),Current,Other exit,157,0.009
+COVID (Apr20-Dec21),Current,Prepaid,49229,2.676
