@@ -1,0 +1,6 @@
+step,el_mn,added_mn,el_bps,x_baseline
+0. Baseline (PIT),11.66,11.66,4.5,1.0
+1. + Unemployment (PD),34.64,22.98,13.4,3.0
+2. + Negative equity (PD),45.81,11.17,17.8,3.9
+3. + D90->loss conversion,104.15,58.34,40.4,8.9
+4. + Loss severity (HPI -30%),128.62,24.47,49.8,11.0
