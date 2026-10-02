@@ -1,0 +1,18 @@
+segment_type,segment,loss_events,upb_mn,loss_mn,severity_pct,median_loan_severity_pct
+Portfolio,All,485,85.29,20.17,23.7,21.1
+LTV band,4: >90,342,64.15,16.26,25.3,24.7
+LTV band,1: <=70,36,3.99,0.66,16.6,6.3
+LTV band,2: 71-80,69,11.07,1.85,16.8,12.3
+LTV band,3: 81-90,38,6.08,1.4,23.0,14.2
+Mortgage insurance,No MI,296,51.18,14.74,28.8,27.9
+Mortgage insurance,Has MI,189,34.11,5.44,15.9,12.9
+Foreclosure type,Non-judicial,288,54.5,10.7,19.6,16.9
+Foreclosure type,Judicial,197,30.79,9.47,30.8,29.5
+Loss type,Short sale,131,26.81,6.77,25.2,24.4
+Loss type,Third-party sale,176,28.03,4.38,15.6,9.4
+Loss type,REO disposition,178,30.45,9.03,29.7,33.4
+Vintage,2021,15,3.48,0.23,6.7,5.7
+Vintage,2023,31,6.47,1.08,16.7,13.0
+Vintage,2019,33,6.13,0.72,11.8,4.4
+Vintage,2012,332,55.87,16.45,29.4,29.1
+Vintage,2016,74,13.32,1.68,12.6,5.5
