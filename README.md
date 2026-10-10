@@ -1,123 +1,171 @@
-# Credit Card Fraud Detection — Cost-Sensitive Threshold Optimization
+# Mortgage Credit Risk Analysis & Stress Testing
 
-A production-minded fraud detector that goes beyond model accuracy to optimize the
-**business decision**: which transactions to block. Built on 284,807 real European card
-transactions (0.17% fraud rate), the project pairs a tuned LightGBM ranker with a
-dollar-cost-optimized decision threshold — cutting expected fraud cost by **~20%** versus a
-naive 0.50 cutoff, validated on a locked holdout set opened exactly once.
+Credit risk analysis of **250,000 Freddie Mac mortgages** (5 origination vintages, 50K loans each), from raw loan-level files to a vintage analysis, a 12-month expected-loss model and a stress test under the **Federal Reserve's 2026 severely adverse scenario**.
 
-**Interactive dashboard:** open `fraud-dashboard.html` (or the GitHub Pages link) to explore
-the cost/threshold trade-off live — drag the threshold and watch recall, false alarms, and
-dollar cost respond in real time.
+**[Live Tableau dashboard](https://public.tableau.com/app/profile/anushka.gupta8497/viz/MortgageCreditRiskDashboard/MortgageCreditRisk)**
 
-## Results at a glance
+![Dashboard](outputs/dashboard.png)
 
-| Metric | Value |
+---
+
+## Headline finding
+
+**The 2023 vintage is the main risk in this book.** Four separate methods point to it:
+
+| Method | What it shows for the 2023 vintage |
 |---|---|
-| Baseline CV PR-AUC (Logistic Regression) | 0.7615 |
-| Tuned LightGBM CV PR-AUC | 0.8468 |
-| Final test PR-AUC (holdout, opened once) | 0.8745 |
-| Cost-optimal threshold | 0.044 |
-| Test recall (frauds caught) | 84.7% (83/98) |
-| Test precision | 78.3% |
-| Expected cost — optimized threshold | $1,730 |
-| Expected cost — default 0.50 threshold | $2,150 |
-| **Cost reduction** | **~20%** |
+| Vintage curves | At the same loan age it goes 90+ days late faster than every other vintage except 2019 (the COVID vintage) |
+| Calendar view | It is the vintage with the highest share of loans 90+ days late **today**: 1.24%, up from 0.87% a year earlier |
+| Expected loss | It is 40% of the balance but **54% of the 12-month expected loss** |
+| Stress test | 52% of its loans go underwater if house prices fall 30%. That makes it **62% of the stressed loss** |
 
-Choosing the cost-optimal threshold caught **6 more frauds** and saved **~$420 (~20%)** on the
-holdout set versus the default cutoff.
+Loans written in 2023 were made at peak house prices with high rates, so borrowers have the least equity cushion and the least room in their budgets.
 
-## Dataset
+## Key numbers
 
-| Property | Detail |
+| | |
 |---|---|
-| Source | [Kaggle / ULB — Credit Card Fraud Detection](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud) |
-| Transactions | 284,807 over 48 hours (European cardholders, Sept 2013) |
-| Frauds | 492 (0.17%) — extreme class imbalance |
-| Features | V1-V28 (PCA-anonymized), Time, Amount |
+| Active book (Mar 2026) | $25.8B, 114,860 loans |
+| Loans 90+ days late today | 0.75%, **2.1x** two years ago (0.36%) |
+| 12-month expected loss (point-in-time) | **$11.7M** (4.5 bps of balance) |
+| Expected loss in a Fed severe recession | **$128.6M** (49.8 bps), **11x** baseline |
+| 2-year cumulative stressed loss | $227.6M (0.88% of balance) |
+| Loss severity (loss / balance at default) | 23.7% overall |
 
-## Approach
+---
 
-### Evaluation design
-- **Metric:** PR-AUC (area under the precision-recall curve) — the meaningful metric when
-  99.83% of the data is one class. Accuracy is useless here: a model that predicts "legit" on
-  every transaction scores 99.83% and catches zero fraud.
-- **Leak-safe harness:** an 80/20 stratified split is locked at the start. All model
-  selection, tuning, and threshold optimization happen via stratified cross-validation on the
-  training set only. The test set is sealed and opened exactly once, at the end, for final
-  reporting.
+## Questions answered
 
-### Resampling — what didn't work (and why it matters)
-- SMOTE and random undersampling were tested inside the CV folds against a class-weighted
-  baseline. None beat the plain baseline on PR-AUC (SMOTE 0.7528, undersample 0.6623,
-  class_weight 0.7571, vs baseline 0.7615). Resampling changes the training distribution but
-  doesn't improve a well-regularized model's ability to *rank* fraud above legitimate
-  transactions. The real lever is the decision threshold, not the class balance.
+### 1. Do some vintages perform worse than others? (`vintage_curves.py`)
+Cumulative % of loans ever 90+ days late, by months since origination. At age 24 months, **2019 loans were about 5.2x the median of the other vintages**, because COVID hit them in their second year.
 
-### Model selection and tuning
-- **Baseline:** Logistic Regression with balanced class weights — CV PR-AUC **0.7615**.
-- **LightGBM:** tuned via `RandomizedSearchCV` (20 iterations, 3-fold stratified CV, PR-AUC
-  scoring) — CV PR-AUC **0.8468**, test PR-AUC **0.8745**.
-- **Deliberately did not use `scale_pos_weight`:** at this imbalance level (~577:1) it
-  degrades ranking quality rather than improving it. Imbalance is handled where it belongs —
-  through the PR-AUC objective and the decision threshold — not by reweighting the loss.
+![Vintage curves](outputs/vintage_curves.png)
 
-### Cost-sensitive threshold optimization
-- The standard 0.50 cutoff assumes false negatives and false positives cost the same — in
-  fraud detection they don't. A missed fraud costs real money; a false alarm costs a review.
-- Business costs are made explicit: **$100 per missed fraud** (FN) and **$10 per false alarm**
-  (FP) — a 10:1 asymmetry. (Illustrative assumptions; the method generalizes to any cost ratio.)
-- Thresholds are swept over out-of-fold training scores; the cost-minimizing cutoff
-  (**0.044**) is selected and locked *before* the test set is touched.
+### 2. Was COVID a vintage problem or a calendar problem? (`calendar_d90.py`)
+Plotting the same data by **calendar month** shows every vintage on the books spiked in the same months, whatever its age. Portfolio 90+ days late went from 0.19% (Dec 2019) to 2.95% (Sep 2020). That is a **systemic shock**, not bad underwriting.
 
-### Interpretability (SHAP)
-- TreeSHAP on the final model gives exact Shapley-value explanations.
-- **Global:** a handful of PCA components (V14, V4, V12, V10, V17) dominate fraud predictions;
-  Time ranks near the bottom (a logging artifact unlikely to generalize); Amount lands
-  mid-pack — modest predictive importance but central to the cost function, illustrating that
-  importance-to-prediction and importance-to-business are distinct.
-- **Local:** single-transaction waterfall decompositions show which features pushed a specific
-  prediction past the decision threshold — the kind of explanation a fraud analyst or regulator
-  needs for a blocked card.
+![Calendar view](outputs/calendar_d90.png)
 
-## Honest limitations
-- **Anonymized features cap interpretability.** V1-V28 are PCA components, so SHAP reveals
-  *which* component drives a decision but not *what* real-world signal it represents. No domain
-  feature engineering is possible.
-- **Single time window.** The data is one 48-hour slice from 2013. Fraud patterns drift, so
-  this model would need regular retraining to stay useful in production.
-- **Random split, not temporal.** Train/test were split randomly. A production setup should
-  validate on a *later* period than it trains on, since future transactions can't be used to
-  catch past ones — random splitting slightly flatters the reported numbers.
-- **Costs are assumptions.** The $100/$10 figures are illustrative. The optimal threshold
-  depends on them; real deployment would use the business's actual cost of a missed fraud vs. a
-  false decline.
+### 3. How do loans move between delinquency states? (`roll_rate.py`)
+Month-to-month transition (roll-rate) matrix, normal times vs COVID (Apr 2020 to Dec 2021):
 
-## Reproducibility
-- `random_state=42` used throughout all splits, CV folds, and model fits.
-- Test set constructed once and opened once — no iterative tuning on the holdout.
-- Full code in the accompanying notebook.
+| Transition | Normal | COVID |
+|---|---|---|
+| 30 days late → 60 | 15.5% | 37.7% |
+| 60 days late → 90+ | 37.1% | 64.1% |
+| 90+ days late → Default | 1.06% | 0.09% |
 
-## Repository structure
+Late loans rolled forward much faster in COVID, but almost none defaulted, because the **foreclosure moratorium and forbearance** froze the last step.
 
-```
-.
-├── credit-card-fraud.ipynb   # end-to-end notebook (EDA -> model -> threshold -> SHAP)
-├── fraud-dashboard.html      # self-contained interactive dashboard (open in any browser)
-├── README.md
-└── requirements.txt
-```
+### 4. Which borrower traits drive risk? (`risk_drivers.py`)
+"Lift" = segment's 24-month 90+ late rate ÷ portfolio rate.
+
+- FICO < 620: **4.45x**
+- LTV 96–100: **2.45x**
+- DTI 44–50: **1.65x**
+
+The risk layers. Across a FICO × LTV grid the 90+ late rate runs from **0.26% (780+, LTV ≤70) to 7.42% (<680, LTV >90), about 29x**.
+
+![Risk drivers](outputs/risk_drivers_lift.png)
+![FICO x LTV grid](outputs/risk_grid_heatmap.png)
+
+### 5. How much is lost when a loan defaults? (`lgd.py`)
+Severity is measured from actual loss data on 485 loss events:
+
+| Segment | Severity |
+|---|---|
+| All | 23.7% |
+| Judicial foreclosure states | 30.8% |
+| Non-judicial states | 19.6% |
+| With mortgage insurance | 15.9% |
+| Without mortgage insurance | 28.8% |
+
+Only **11.8%** of resolved 90+ late loans end in a loss. Most cure, refinance or sell. This is measured on resolved loans only, because loans still active might yet default (right-censoring). The naive figure over all loans is 5.7%.
+
+### 6. What is the expected loss? (`pd_model.py`, `expected_loss.py`)
+`EL = PD × LGD × EAD`, built loan by loan:
+
+- **PD**: 12-month snapshot PD by FICO × LTV segment. Through-the-cycle 0.70%. COVID window 3.54% (~5x). Loans already 90+ late get PD = 100%.
+- **LGD**: D90→loss conversion × severity by LTV band.
+- **EAD**: current unpaid balance.
+
+Result: **$11.7M (4.5 bps)**. **50% of it comes from just 861 loans already 90+ days late.**
+
+### 7. What happens in a severe recession? (`stress_test.py`)
+Uses the **Fed 2026 severely adverse scenario**: unemployment 4.5% → 10%, house prices −30%. Each shock is applied one at a time, so the result is a waterfall:
+
+| Step | 12-month EL | Added |
+|---|---|---|
+| Baseline | $11.7M | |
+| + Unemployment (COVID-observed PD multiplier per segment) | $34.6M | +$23.0M |
+| + Negative equity (underwater loans: PD × 2) | $45.8M | +$11.2M |
+| + More late loans end in foreclosure (11.8% → 26.7%) | $104.2M | +$58.3M |
+| + Lower recovery (house prices −30%) | **$128.6M** | +$24.5M |
+
+**Half of the increase comes from late loans ending in foreclosure, not from more loans going late.** Underwater loans go from 369 to 22,927 (20% of the book).
+
+Sensitivity on the two softest assumptions (negative-equity multiplier 1–3x, unemployment shock 0.5–1.5x COVID) gives a range of **$63M – $221M**.
+
+![Stress waterfall](outputs/stress_waterfall.png)
+![Stress by vintage](outputs/stress_vintage.png)
+
+---
+
+## Method notes
+
+- **Default proxy**: ever 90+ days late, including REO acquisition and zero-balance codes 02/03/09 (third-party sale, short sale, REO).
+- **Observation-window bias**: newer vintages have had less time to go bad, so vintages are compared on **90+ late within 24 months**, not "ever".
+- **Missing-value codes** (FICO 9999, LTV/DTI 999, etc.) are converted to NULL before any analysis.
+- **NULL trap**: `BOOL_OR` over all-NULL rows returns NULL and `AVG` skips it. This first showed forbearance at 78–95%. Wrapping it in `COALESCE(..., FALSE)` gave the real 1–7%.
+- **TTC vs PIT**: through-the-cycle PD pools all normal snapshots. Point-in-time uses the latest (Jul 2024, Mar 2025).
+- **Stressed conversion** uses the 2012 vintage (post-crisis, many underwater HARP loans) as the closest in-sample analogue of a falling-house-price world.
+
+## Limitations
+
+- Freddie Mac's **sample** files (50K loans per vintage), not the full dataset.
+- Stress multipliers are calibrated on COVID, when forbearance stopped defaults. A recession without forbearance would probably be worse.
+- Only 485 loss events, so severity by small segments is noisy.
+- No macro regression model; the stress test applies observed multipliers and stated assumptions (all constants at the top of `stress_test.py`).
+
+---
+
+## Project structure
+
+| Step | Script | Output |
+|---|---|---|
+| Load raw files into DuckDB | `load_data.py` | `mortgage.duckdb` |
+| Clean + flag | `clean_views.py`, `loan_summary.py` | `orig_clean`, `perf_clean`, `loan_summary` |
+| Vintage analysis | `vintage_curves.py`, `plot_vintage_curves.py`, `calendar_d90.py` | curves, calendar view |
+| Roll rates | `roll_rate.py` | transition matrix |
+| Risk drivers | `risk_drivers.py`, `plot_risk_drivers.py` | lift chart, FICO × LTV grid |
+| LGD | `lgd.py` | severity by segment |
+| PD + Expected loss | `pd_model.py`, `expected_loss.py` | EL by segment and vintage |
+| Stress test | `stress_test.py`, `plot_stress.py` | waterfall, vintage, sensitivity |
+| Dashboard data | `tableau_prep.py` | `outputs/tableau/tableau_data.xlsx` |
+
+All CSVs and charts are in [`outputs/`](outputs/).
 
 ## How to run
 
-1. Download the dataset from
-   [Kaggle](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud) and place `creditcard.csv`
-   next to the notebook (or point the load cell at your path).
-2. Install dependencies: `pip install -r requirements.txt`
-3. Open `credit-card-fraud.ipynb` and run all cells top to bottom. The LightGBM search takes a
-   few minutes; seeds are fixed, so results are reproducible.
-4. To explore the results interactively, open `fraud-dashboard.html` in any browser — no
-   install or server needed.
+1. Register and download the **Single-Family Loan-Level Dataset sample files** from [Freddie Mac](https://www.freddiemac.com/research/datasets/sf-loanlevel-dataset) for 2012, 2016, 2019, 2021 and 2023. Unzip them into `data/raw/`. The data is not included in this repo because of Freddie Mac's terms of use.
+2. Install:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Run the scripts in the order of the table above:
+   ```bash
+   python load_data.py
+   python clean_views.py
+   python loan_summary.py
+   # ... through tableau_prep.py
+   ```
+
+Runs on a laptop (built on a MacBook Air M2, 8GB RAM). DuckDB queries the monthly performance files (millions of rows) directly, with no database server needed.
 
 ## Tools
-Python · scikit-learn · LightGBM · imbalanced-learn · SHAP · pandas · NumPy · Matplotlib · seaborn
+
+Python · DuckDB (SQL) · pandas · matplotlib · Tableau Public
+
+## Data source
+
+Freddie Mac Single-Family Loan-Level Dataset. Stress scenario: [Federal Reserve 2026 supervisory stress test scenarios](https://www.federalreserve.gov/newsevents/pressreleases/bcreg20260204a.htm).

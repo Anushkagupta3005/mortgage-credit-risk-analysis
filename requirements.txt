@@ -1,9 +1,5 @@
-numpy
+duckdb
 pandas
-scikit-learn
-lightgbm
-imbalanced-learn
-shap
-scipy
+numpy
 matplotlib
-seaborn
+openpyxl
