@@ -31,6 +31,7 @@ Loans written in 2023 were made at peak house prices with high rates, so borrowe
 | Expected loss in a Fed severe recession | **$128.6M** (49.8 bps), **11x** baseline |
 | 2-year cumulative stressed loss | $227.6M (0.88% of balance) |
 | Loss severity (loss / balance at default) | 23.7% overall |
+| PD model, out-of-time test (2024–25) | **AUC 0.90, Gini 0.80, KS 0.64** vs 0.76 AUC for the old segment PD |
 
 ---
 
@@ -109,6 +110,30 @@ Sensitivity on the two softest assumptions (negative-equity multiplier 1–3x, u
 ![Stress waterfall](outputs/stress_waterfall.png)
 ![Stress by vintage](outputs/stress_vintage.png)
 
+### 8. Can a statistical model predict default, and did its predictions come true? (`pd_features.py`, `pd_logit.py`, `pd_backtest.py`)
+A **logistic regression PD scorecard** on 688K loan-snapshots. Every feature is banded (scorecard style) so each band's effect is readable as an odds ratio. Features are only what was known **at the snapshot** (no look-ahead): FICO, LTV, DTI, current LTV, loan age, number of borrowers, occupancy, MI, current delinquency and worst delinquency in the prior 12 months.
+
+**Out-of-time validation**: trained on 2016–2023 snapshots (COVID excluded), tested on 2024-07 and 2025-03 snapshots the model never saw.
+
+| Model | Test AUC | Gini | KS |
+|---|---|---|---|
+| **Logistic regression scorecard** | **0.901** | **0.80** | **0.64** |
+| Old FICO × LTV segment PD (benchmark) | 0.756 | 0.51 | 0.39 |
+| Gradient boosting (challenger) | 0.899 | 0.80 | 0.64 |
+
+The explainable model matches the ML challenger, so nothing is lost by choosing it.
+
+- **Behaviour beats origination**: a loan that was 60–90 days late in the last year has **~20x** the odds of a never-late loan. FICO < 660 is 3.6x vs FICO 740–779; a single borrower is 1.9x vs two.
+- **Ranking holds on the hardest loans**: among loans current and never late in the last year (no delinquency history to lean on), AUC is still **0.78** (old segment PD: 0.73).
+- **Riskiest 10% of loans hold 73% of bad loans** in the test period.
+
+**Backtest: the model under-predicts recent risk.** In both test snapshots actual defaults ran **~26% above** prediction (0.95% actual vs 0.76% predicted in 2025-03). The miss is concentrated in recent vintages: **2023 loans defaulted at 1.39x** what their borrower profile predicts (2012 and 2016 vintages: within 4%). So the 2023 vintage is riskier than its FICO, LTV and DTI explain, which is consistent with the headline finding. One likely driver is payment affordability at high rates, which these features do not capture.
+
+**Recalibration**: scaling the model's odds to match the 2024-07 snapshot (×1.27) and checking on 2025-03 brings the prediction from 0.76% to **0.91%** (actual 0.95%) without changing the ranking. Banks call this a point-in-time calibration.
+
+![PD calibration by decile](outputs/pd_calibration.png)
+![PD backtest over time](outputs/pd_backtest_time.png)
+
 ---
 
 ## Method notes
@@ -118,6 +143,7 @@ Sensitivity on the two softest assumptions (negative-equity multiplier 1–3x, u
 - **Missing-value codes** (FICO 9999, LTV/DTI 999, etc.) are converted to NULL before any analysis.
 - **NULL trap**: `BOOL_OR` over all-NULL rows returns NULL and `AVG` skips it. This first showed forbearance at 78–95%. Wrapping it in `COALESCE(..., FALSE)` gave the real 1–7%.
 - **TTC vs PIT**: through-the-cycle PD pools all normal snapshots. Point-in-time uses the latest (Jul 2024, Mar 2025).
+- **Thin bands merged in the scorecard**: DTI > 50 (31 loans, zero bad) caused perfect separation and a non-converging fit, and FICO < 620 (2.5K loans) came out less risky than 620–659. Both were merged into neighbours so risk is monotonic across bands.
 - **Stressed conversion** uses the 2012 vintage (post-crisis, many underwater HARP loans) as the closest in-sample analogue of a falling-house-price world.
 
 ## Limitations
@@ -125,6 +151,7 @@ Sensitivity on the two softest assumptions (negative-equity multiplier 1–3x, u
 - Freddie Mac's **sample** files (50K loans per vintage), not the full dataset.
 - Stress multipliers are calibrated on COVID, when forbearance stopped defaults. A recession without forbearance would probably be worse.
 - Only 485 loss events, so severity by small segments is noisy.
+- The PD model's features do not include payment shock or the borrower's rate versus market rates, which likely explains part of its under-prediction for recent vintages.
 - No macro regression model; the stress test applies observed multipliers and stated assumptions (all constants at the top of `stress_test.py`).
 
 ---
@@ -141,6 +168,7 @@ Sensitivity on the two softest assumptions (negative-equity multiplier 1–3x, u
 | LGD | `lgd.py` | severity by segment |
 | PD + Expected loss | `pd_model.py`, `expected_loss.py` | EL by segment and vintage |
 | Stress test | `stress_test.py`, `plot_stress.py` | waterfall, vintage, sensitivity |
+| PD scorecard + backtest | `pd_features.py`, `pd_logit.py`, `pd_backtest.py` | coefficients, AUC/Gini/KS, calibration charts |
 | Dashboard data | `tableau_prep.py` | `outputs/tableau/tableau_data.xlsx` |
 
 All CSVs and charts are in [`outputs/`](outputs/).
@@ -164,7 +192,7 @@ Runs on a laptop (built on a MacBook Air M2, 8GB RAM). DuckDB queries the monthl
 
 ## Tools
 
-Python · DuckDB (SQL) · pandas · matplotlib · Tableau Public
+Python · DuckDB (SQL) · pandas · statsmodels · scikit-learn · matplotlib · Tableau Public
 
 ## Data source
 
