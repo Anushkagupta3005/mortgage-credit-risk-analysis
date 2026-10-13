@@ -1,0 +1,7 @@
+model,sample,auc,gini,ks,actual_bad_pct,predicted_bad_pct
+Logistic regression (scorecard),train,0.8937,0.7874,0.6217,0.558,0.558
+Logistic regression (scorecard),test (out-of-time),0.9008,0.8017,0.6435,0.942,0.748
+Benchmark: FICO x LTV segment PD,train,0.7712,0.5424,0.4144,0.558,0.558
+Benchmark: FICO x LTV segment PD,test (out-of-time),0.7556,0.5112,0.3902,0.942,0.574
+Challenger: gradient boosting,train,0.9497,0.8994,0.7617,0.558,0.57
+Challenger: gradient boosting,test (out-of-time),0.8989,0.7979,0.6399,0.942,0.752
