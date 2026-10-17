@@ -32,6 +32,7 @@ Loans written in 2023 were made at peak house prices with high rates, so borrowe
 | 2-year cumulative stressed loss | $227.6M (0.88% of balance) |
 | Loss severity (loss / balance at default) | 23.7% overall |
 | PD model, out-of-time test (2024–25) | **AUC 0.90, Gini 0.80, KS 0.64** vs 0.76 AUC for the old segment PD |
+| 12-month EL with loan-level scorecard PD | **$12.5M** (4.85 bps); 2023 vintage = **60%** of it |
 
 ---
 
@@ -134,6 +135,21 @@ The explainable model matches the ML challenger, so nothing is lost by choosing 
 ![PD calibration by decile](outputs/pd_calibration.png)
 ![PD backtest over time](outputs/pd_backtest_time.png)
 
+### 9. What changes when every loan gets its own PD? (`el_scorecard.py`)
+The scorecard is refit on all seven normal snapshots, calibrated point-in-time to the latest one (odds ×1.09 so the 2025-03 prediction matches the actual 0.95%), and used to score each of the 114,860 active loans with its features as of Mar 2026. Loans already 90+ days late keep PD = 100%, as before.
+
+| | Segment PD (FICO × LTV) | Scorecard PD (loan level) |
+|---|---|---|
+| 12-month expected loss | $11.7M (4.52 bps) | **$12.5M (4.85 bps)** |
+| Riskiest 10% of performing loans carry | 29% of performing-loan EL | **79%** |
+| 1,432 loans 30–60 days late today: average PD | 1.9% | **34.9%** |
+
+- **The total barely moves (+7%), but where the risk sits changes completely.** The segment PD gives a loan that is 60 days late the same PD as a clean loan in its FICO × LTV cell. The scorecard moves risk onto the loans that are actually slipping: the median performing loan's PD falls to 0.4x its segment PD.
+- **1,432 loans 30–60 days late are an early-warning list.** The segment approach sees them at 1.9%; the scorecard at 35%, before they reach 90 days.
+- **By vintage**: seasoned, clean books fall (2012 −46%, 2016 −20%) and the **2023 vintage rises 19%**, to **60% of expected loss** (from 54%) at 7.2 bps.
+
+The stress test still runs on the segment PD; moving it onto the scorecard is the natural next step.
+
 ---
 
 ## Method notes
@@ -169,6 +185,7 @@ The explainable model matches the ML challenger, so nothing is lost by choosing 
 | PD + Expected loss | `pd_model.py`, `expected_loss.py` | EL by segment and vintage |
 | Stress test | `stress_test.py`, `plot_stress.py` | waterfall, vintage, sensitivity |
 | PD scorecard + backtest | `pd_features.py`, `pd_logit.py`, `pd_backtest.py` | coefficients, AUC/Gini/KS, calibration charts |
+| Scorecard PD in EL | `el_scorecard.py` | loan-level EL, segment vs scorecard by vintage |
 | Dashboard data | `tableau_prep.py` | `outputs/tableau/tableau_data.xlsx` |
 
 All CSVs and charts are in [`outputs/`](outputs/).

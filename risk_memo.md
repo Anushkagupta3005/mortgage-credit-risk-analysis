@@ -11,7 +11,7 @@
 
 1. **Credit quality is deteriorating, from a low base.** 0.75% of active loans are 90+ days late, **2.1x** the level two years ago (0.36%). This is still far below the COVID peak (2.95%), but the trend is up.
 2. **The 2023 vintage drives the risk.** It is 40% of the balance but **54% of 12-month expected loss** and **62% of stressed loss**. Four independent views flag it.
-3. **Baseline expected loss is small: $11.7M (4.5 bps).** Half of it sits in just **861 loans already 90+ days late**.
+3. **Baseline expected loss is small: $11.7M (4.5 bps).** Half of it sits in just **861 loans already 90+ days late**. A loan-level scorecard (out-of-time AUC 0.90) puts it at **$12.5M** and flags **1,432 loans 30–60 days late** with an average 12-month PD of **35%**.
 4. **A Fed-style severe recession raises 12-month expected loss 11x to $128.6M (49.8 bps).** Half of the increase comes from late loans **ending in foreclosure** rather than curing. It does not come from more loans going late.
 
 ## 1. Portfolio today
@@ -61,6 +61,17 @@ EL = PD × LGD × EAD, loan by loan.
 - **Result:** **$11.7M (4.5 bps)**, versus 4.0 bps on a through-the-cycle basis.
 - **Concentration:** 861 loans already 90+ days late carry **50%** of the EL. The 2023 vintage carries **54%** at 6.0 bps, double the 2021 vintage's 3.1 bps.
 
+**Loan-level scorecard PD.** A logistic regression scorecard (FICO, LTV, DTI, current LTV, loan age and recent payment history) was validated out-of-time on 2024–25 data: **AUC 0.90 / Gini 0.80**, against 0.76 / 0.51 for the segment PD. Its backtest showed actual defaults running ~26% above prediction in 2024–25, almost all of it in recent vintages (**2023 loans: 1.39x** predicted), so it is calibrated point-in-time before use.
+
+| | Segment PD | Scorecard PD |
+|---|---|---|
+| 12-month EL | $11.7M (4.5 bps) | **$12.5M (4.9 bps)** |
+| Riskiest 10% of performing loans carry | 29% of their EL | **79%** |
+| 2023 vintage share of EL | 54% | **60%** |
+| 1,432 loans 30–60 days late: average PD | 1.9% | **35%** |
+
+The total moves little; the location of the risk changes. The scorecard pulls risk off seasoned, clean loans (2012 vintage −46%) and onto loans that are already slipping and onto the 2023 vintage (+19%).
+
 ## 5. Stress test: Fed 2026 severely adverse scenario
 
 The Fed's scenario has unemployment rising from 4.5% to **10%** and house prices falling **30%**. Each shock was applied in turn:
@@ -83,7 +94,7 @@ The Fed's scenario has unemployment rising from 4.5% to **10%** and house prices
 
 1. **Put the 2023 vintage on a watchlist.** Track its 90+ late rate monthly against the other vintages at the same loan age. Escalate if it keeps rising while the economy is stable.
 2. **Review the high-LTV, lower-FICO origination cell.** FICO < 680 with LTV > 90 runs at 7.4%, ~29x the safest cell. Consider pricing or overlay changes for new loans with both traits.
-3. **Prioritise loss mitigation capacity for the 861 loans already 90+ late.** They hold half of baseline EL, and cure-vs-foreclose outcomes are the largest stress driver.
+3. **Prioritise loss mitigation capacity for the 861 loans already 90+ late, and use the scorecard as an early-warning list.** The 90+ loans hold half of baseline EL, and cure-vs-foreclose outcomes are the largest stress driver. The 1,432 loans 30–60 days late (scorecard PD ~35%) are the next wave: contact them before they reach 90 days.
 4. **Hold reserves against the point-in-time view, not through-the-cycle.** Current conditions run above the long-run average.
 5. **Treat mortgage insurance and judicial-state exposure as severity drivers** in limit setting. Each moves loss severity by 11–13 points.
 
@@ -92,6 +103,7 @@ The Fed's scenario has unemployment rising from 4.5% to **10%** and house prices
 - Freddie Mac **sample** files (50K loans per vintage), not the full portfolio.
 - Stress multipliers come from COVID, when forbearance suppressed defaults. A recession without forbearance would likely be worse than modelled.
 - 485 loss events: severity estimates for small segments are noisy.
-- No macro regression model. The stress test applies observed multipliers and stated assumptions, all listed in `stress_test.py`.
+- No macro regression model. The stress test applies observed multipliers and stated assumptions, all listed in `stress_test.py`, and still runs on the segment PD rather than the scorecard.
+- The scorecard has no payment-shock or rate-vs-market feature, which likely explains its under-prediction for the 2023 vintage.
 
 *Data: Freddie Mac Single-Family Loan-Level Dataset (sample). Scenario: Federal Reserve 2026 supervisory stress test. Code, charts and dashboard: github.com/Anushkagupta3005/mortgage-credit-risk-analysis*
