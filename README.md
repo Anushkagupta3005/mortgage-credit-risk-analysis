@@ -33,6 +33,7 @@ Loans written in 2023 were made at peak house prices with high rates, so borrowe
 | Loss severity (loss / balance at default) | 23.7% overall |
 | PD model, out-of-time test (2024–25) | **AUC 0.90, Gini 0.80, KS 0.64** vs 0.76 AUC for the old segment PD |
 | 12-month EL with loan-level scorecard PD | **$12.5M** (4.85 bps); 2023 vintage = **60%** of it |
+| Management overlay (2019 + 2023 vintages) | **+$0.31M** → total EL **$12.83M** (4.97 bps); high case +$1.17M |
 
 ---
 
@@ -150,6 +151,26 @@ The scorecard is refit on all seven normal snapshots, calibrated point-in-time t
 
 The stress test still runs on the segment PD; moving it onto the scorecard is the natural next step.
 
+### 10. Does the model still miss any vintage, and how much extra should be held? (`overlay.py`)
+*Prompted by feedback from a credit-risk practitioner on the 2023 vintage.*
+
+The backtest (Q8) showed 2023 loans defaulting above prediction. When a model is known to miss a risk, a bank does not wait for the model to be rebuilt: it holds a separate, documented amount on top of the model's expected loss, a **management overlay** (post-model adjustment). The loss is the same either way. The overlay books it now, so it does not hit earnings later as a surprise.
+
+**Sizing it honestly.** The 1.39x gap in Q8 is *before* calibration, and part of it is already fixed by the point-in-time calibration in Q9. Measuring the gap on the snapshot the model was calibrated on makes it look close to zero (1.03x for 2023). So the recipe from Q9 (fit + calibrate) is re-run one step back in time, twice, and the gap is measured on a snapshot it has not seen:
+
+| Vintage | Gap on unseen 2024-07 | Gap on unseen 2025-03 | Overlay factor (point) | Overlay |
+|---|---|---|---|---|
+| 2019 | 1.35x | 1.14x | 1.14x | $0.10M |
+| 2023 | 1.25x | 1.05x | 1.05x | $0.21M |
+| **Total** | | | | **$0.31M** (high case $1.17M) |
+
+Overlay PD = scorecard PD × factor, for performing loans of that vintage only (loans already 90+ days late are at PD = 100%). Total 12-month EL goes from **$12.52M to $12.83M (+2.5%)**; the 2023 vintage stays at 60% of it.
+
+- **The 2023 miss is real but mostly absorbed by calibration.** It fell from 1.25x to 1.05x as calibration moved to more recent snapshots, where 2023 loans are the largest group. The overlay covers what is left.
+- **2019 is the more persistent miss** (above prediction in every test). Likely driver: COVID forbearance and modifications, which the model does not see.
+- **Older vintages are over-predicted** (2016 at 0.73x, 2012 at 0.89x). Calibration matches the portfolio total, so over-prediction on old loans offsets under-prediction on new ones. No negative overlay is booked; that excess is kept as a conservative cushion.
+- **Release trigger**: remove the overlay once the model has a payment-shock feature (2023) and a forbearance-history feature (2019).
+
 ---
 
 ## Method notes
@@ -167,7 +188,8 @@ The stress test still runs on the segment PD; moving it onto the scorecard is th
 - Freddie Mac's **sample** files (50K loans per vintage), not the full dataset.
 - Stress multipliers are calibrated on COVID, when forbearance stopped defaults. A recession without forbearance would probably be worse.
 - Only 485 loss events, so severity by small segments is noisy.
-- The PD model's features do not include payment shock or the borrower's rate versus market rates, which likely explains part of its under-prediction for recent vintages.
+- The PD model's features do not include payment shock or the borrower's rate versus market rates, which likely explains part of its under-prediction for recent vintages. A management overlay covers this for now (Q10).
+- The overlay is sized on two out-of-time windows only, so the factor is a rough estimate; the range is shown alongside it.
 - No macro regression model; the stress test applies observed multipliers and stated assumptions (all constants at the top of `stress_test.py`).
 
 ---
@@ -186,6 +208,7 @@ The stress test still runs on the segment PD; moving it onto the scorecard is th
 | Stress test | `stress_test.py`, `plot_stress.py` | waterfall, vintage, sensitivity |
 | PD scorecard + backtest | `pd_features.py`, `pd_logit.py`, `pd_backtest.py` | coefficients, AUC/Gini/KS, calibration charts |
 | Scorecard PD in EL | `el_scorecard.py` | loan-level EL, segment vs scorecard by vintage |
+| Management overlay | `overlay.py` | out-of-time gap by vintage, overlay and total EL |
 | Dashboard data | `tableau_prep.py` | `outputs/tableau/tableau_data.xlsx` |
 
 All CSVs and charts are in [`outputs/`](outputs/).

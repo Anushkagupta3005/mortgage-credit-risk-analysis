@@ -1,0 +1,6 @@
+line,el_mn,el_bps,vs_model_pct
+Model EL (scorecard PD),12.523,4.853,100.0
+Overlay,0.309,0.12,2.464
+Total EL (model + overlay),12.831,4.973,102.464
+Overlay (low),0.309,0.12,2.464
+Overlay (high),1.166,0.452,9.312
